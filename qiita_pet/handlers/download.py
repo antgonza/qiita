@@ -17,19 +17,13 @@ class DownloadHandler(BaseHandler):
         check_access(user, study)
 
         file_id = [f[1] for f in preprocessed_data.get_filepaths_with_info()
-                   if f[2]=='preprocessed_fastq'][0]
+                   if f[2]=='preprocessed_fasta']
 
-#         self.redirect('/download_protected/%s' % file_id)
-#
-#
-#         try:
-#             filepath = get_filepath_from_id(file_id)
-#         except:
-#             print 'You can download that file'
-#             self.finish()
-#
-#
-        filepath = file_id[len("/Users/antoniog/Desktop/CurrentWork/largeFiles/qiita/base_dir/"):]
+        if not file_id:
+            raise ValueError('User: %s tried to access preprocessed id: %s' %
+                             (user.id, preprocessed_data_id))
+
+        filepath = file_id[0][len("/Users/antoniog/Desktop/CurrentWork/largeFiles/qiita/base_dir/"):]
         filepath = '/protected/' + filepath
         print filepath, '------'
 
