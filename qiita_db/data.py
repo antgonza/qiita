@@ -206,6 +206,21 @@ class BaseData(QiitaObject):
                                 self._data_filepath_column), {'id': self.id})
         return [fp_id[0] for fp_id in db_ids]
 
+    def get_filepaths_with_info(self):
+        self._check_subclass()
+        conn_handler = SQLConnectionHandler()
+        fps = conn_handler.execute_fetchall(
+            "SELECT filepath_id, filepath, filepath_type_id FROM qiita.{0} "
+            "WHERE filepath_id IN (SELECT filepath_id FROM qiita.{1} WHERE "
+            "{2}=%(id)s)".format(self._filepath_table,
+                                 self._data_filepath_table,
+                                 self._data_filepath_column), {'id': self.id})
+
+        _, fb = get_mountpoint(self._table, conn_handler)[0]
+        base_fp = partial(join, fb)
+        return [(fpid, base_fp(fp), convert_from_id(fid, "filepath_type",
+                conn_handler)) for fpid, fp, fid in fps]
+
     @property
     def link_filepaths_status(self):
         self._check_subclass()

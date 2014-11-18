@@ -24,7 +24,7 @@ from qiita_db.util import (exists_table, exists_dynamic_table, scrub_data,
                            get_db_files_base_dir, get_data_types,
                            get_required_sample_info_status,
                            get_emp_status, purge_filepaths, get_filepath_id,
-                           get_lat_longs, get_mountpoint,
+                           get_lat_longs, get_mountpoint, get_filepath_from_id,
                            get_files_from_uploads_folders)
 
 
@@ -472,6 +472,16 @@ class DBUtilTests(TestCase):
         exp = []
         obs = get_files_from_uploads_folders("2")
         self.assertEqual(obs, exp)
+
+    def test_get_filepath_from_id(self):
+        exp = join(get_db_files_base_dir(), 'raw_data',
+                   '1_s_G1_L001_sequences.fastq.gz')
+        obs = get_filepath_from_id(1)
+
+        self.assertEqual(obs, exp)
+
+        with self.assertRaises(QiitaDBError):
+            get_filepath_from_id(100)
 
 
 class UtilTests(TestCase):

@@ -675,7 +675,7 @@ def purge_filepaths(conn_handler=None):
                 remove(fp)
 
 
-def get_filepath_id(table, fp, conn_handler):
+def get_filepath_id(table, fp, conn_handler=None):
     """Return the filepath_id of fp
 
     Parameters
@@ -685,13 +685,15 @@ def get_filepath_id(table, fp, conn_handler):
     fp : str
         The filepath
     conn_handler : SQLConnectionHandler
-            The sql connection object
+        The sql connection object
 
     Raises
     ------
     QiitaDBError
         If fp is not stored in the DB.
     """
+    conn_handler = conn_handler if conn_handler else SQLConnectionHandler()
+
     _, mp = get_mountpoint(table, conn_handler)[0]
     base_fp = join(get_db_files_base_dir(), mp)
 
@@ -704,6 +706,39 @@ def get_filepath_id(table, fp, conn_handler):
         raise QiitaDBError("Filepath not stored in the database")
 
     return fp_id[0]
+
+
+def get_filepath_from_id(fp_id, conn_handler=None):
+    """Return the full filepath from a fp
+
+    Parameters
+    ----------
+    fp : int
+        The filepath id
+    conn_handler : SQLConnectionHandler
+        The sql connection object
+
+    Raises
+    ------
+    QiitaDBError
+        If fp is not stored in the DB.
+    """
+    conn_handler = conn_handler if conn_handler else SQLConnectionHandler()
+
+    data = conn_handler.execute_fetchone(
+        "SELECT filepath, data_type FROM qiita.filepath LEFT JOIN "
+        "qiita.data_directory ON qiita.filepath.data_directory_id="
+        "qiita.data_directory.data_directory_id where filepath_id = %s",
+        (fp_id,))
+
+    if not data:
+        raise QiitaDBError("filepath id not stored in the database")
+
+    f, data_type = data
+    _, mp = get_mountpoint(data_type, conn_handler)[0]
+    fp = join(get_db_files_base_dir(), mp, f)
+
+    return fp
 
 
 def convert_to_id(value, table, conn_handler=None):

@@ -135,6 +135,17 @@ class RawDataTests(TestCase):
                   '1_s_G1_L001_sequences_barcodes.fastq.gz'), "raw_barcodes")]
         self.assertEqual(obs, exp)
 
+    def test_get_filepaths_with_info(self):
+        """Correctly returns the filepaths with info to the raw files"""
+        rd = RawData(1)
+        obs = rd.get_filepaths_with_info()
+        exp = [
+            (1, join(self.db_test_raw_dir, '1_s_G1_L001_sequences.fastq.gz'),
+             'raw_forward_seqs'),
+            (2, join(self.db_test_raw_dir,
+             '1_s_G1_L001_sequences_barcodes.fastq.gz'), 'raw_barcodes')]
+        self.assertEqual(obs, exp)
+
     def test_studies(self):
         """Correctly returns the study ids"""
         rd = RawData(1)

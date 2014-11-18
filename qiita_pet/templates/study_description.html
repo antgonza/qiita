@@ -291,12 +291,17 @@ function newInvestigationTypeChanged(rawDataID, isEdit){
                           </td>
                         </tr>
                         {% if user_level == "admin" %}
+                          <tr>
+                            <td style="padding:3px;">
+                              <a class="btn btn-primary" href="/ebi_submission/{{pd.id}}">Submit to EBI</a>
+                            </td>
+                          </tr>
+                        {% end %}
                         <tr>
                           <td style="padding:3px;">
-                            <a class="btn btn-primary" href="/ebi_submission/{{pd.id}}">Submit to EBI</a>
+                            <a class="btn btn-primary" href="/download/{{pd.id}}">Download preprocessed files</a>
                           </td>
                         </tr>
-                        {% end %}
                       {% end %}
                     {% end %}
                     </table>
