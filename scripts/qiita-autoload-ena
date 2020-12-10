@@ -1,0 +1,263 @@
+#!/usr/bin/env python
+
+# -----------------------------------------------------------------------------
+# Copyright (c) 2020--, The Qiita Development Team.
+#
+# Distributed under the terms of the BSD 3-clause License.
+#
+# The full license is in the file LICENSE, distributed with this software.
+# -----------------------------------------------------------------------------
+import click
+
+from glob import glob
+from os.path import isdir, basename
+from qiita_db.handlers.plugin import _get_plugin
+from qiita_db.util import get_data_types
+from qiita_db.commands import (
+    load_study_from_cmd, load_sample_template_from_cmd,
+    load_prep_template_from_cmd, load_artifact_from_cmd)
+from qiita_db.metadata_template.util import load_template_to_dataframe
+from qiita_db.software import Parameters
+from qiita_db.user import User
+from qiita_db.processing_job import ProcessingWorkflow
+from markdown2 import Markdown
+
+
+EMAIL = 'qiita.help@gmail.com'
+
+
+@click.command()
+@click.argument('input-folder', required=True, type=click.Path(
+    resolve_path=True, readable=True, exists=True))
+def autoload_ebi_study(input_folder):
+    """Scans and inserts an input_folder for downloaded projects
+
+       Parameters
+       ----------
+       input_folder : click.Path
+           The input folder to scan
+    """
+    user = User(EMAIL)
+    project_folders = [f for f in glob(f'{input_folder}/*') if isdir(f)]
+
+    data_types = set(get_data_types())
+
+    # these are automatic columns that are added during download that we could
+    # remove
+    st_to_rm = ['secondary_sample_accession', 'run_accession', 'sample_alias',
+                'prep_file', 'library_name']
+    pt_to_rm = ['primary_ebi_id']
+
+    # looping through the internal folders as each is a new project
+    for project_folder in project_folders:
+        # STEP 1: setting up all variables and files for the project_folder
+        title, config_fp, sample_fp = None, None, None
+        fastqs = []
+        preparations = []
+        messages = []
+        # keep track of unsuccesful files so we can copy to the studies
+        # upload folder
+        to_copy = []
+        for f in glob(f'{project_folder}/*'):
+            if f.endswith('fastq.gz'):
+                fastqs.append(f)
+            elif f.endswith('_sample_info.tsv'):
+                sample_fp = f
+            elif 'study_title' in f:
+                with open(f, 'r') as fp:
+                    title = fp.readlines()[0].strip()
+            elif 'study_conf' in f:
+                config_fp = f
+            elif 'prep_info' in f:
+                preparations.append(f)
+            else:
+                messages.append('Ignoring file: %s' % basename(f))
+
+        # TODO: check that none of the accessions are (study, sample,
+        # experiment, run) already in the database
+
+        # STEP 2: loading the study via the config file
+        study = load_study_from_cmd(user.email, title, open(config_fp, 'r'))
+        study.autoloaded = True
+
+        # loading the sample information file
+        st = load_template_to_dataframe(sample_fp)
+        for c in st_to_rm:
+            if c in st.columns:
+                del st[c]
+        st.to_csv(sample_fp, sep='\t')
+        sample_info = load_sample_template_from_cmd(sample_fp, study.id)
+
+        # inserting the sample ebi accessions
+        study_id = study.id
+        study.ebi_study_accession = study.info['study_alias']
+        sample_info.ebi_sample_accessions = {
+            f'{study_id}.{s}': s for s in st.index}
+        sample_info.biosample_accessions = {
+            f'{study_id}.{k}': v
+            for k, v in st['sample_accession'].to_dict().items()}
+
+        # STEP 3: adding each of the preparations and linking raw data; note
+        # thatwe will not add any processing but we will keep which artifacts
+        # were created to do it later
+        artifacts = []
+        for pt_fp in preparations:
+            pt = load_template_to_dataframe(pt_fp)
+            for c in pt_to_rm:
+                if c in pt.columns:
+                    del pt[c]
+            pt.to_csv(pt_fp, sep='\t')
+
+            pt_fp_name = basename(pt_fp)
+            dts = [dt for dt in data_types if dt in pt_fp_name]
+
+            if len(dts) != 1:
+                messages.append(f'Skipping {pt_fp_name} as we could not match '
+                                'to only one data type')
+                to_copy.append(pt_fp)
+                continue
+
+            # adding the preparation and then adding the experiment/run
+            # accessions to the database
+            prep_template = load_prep_template_from_cmd(
+                pt_fp, study.id, dts[0])
+            ptdf = prep_template.to_dataframe()
+            prep_template.ebi_experiment_accessions = ptdf[
+                'experiment_accession'].to_dict()
+            prep_template.ebi_run_accessions = ptdf.run_prefix.to_dict()
+
+            # without run_prefix we can't add the per_sample_FASTQs
+            if 'run_prefix' not in prep_template.categories():
+                messages.append(f'Not adding files to {prep_template.id} as '
+                                'it does not have a run_prefix column')
+                continue
+            run_prefixes = prep_template.get_category('run_prefix').values()
+            filepaths = []
+            filetypes = []
+            for rp in run_prefixes:
+                matches = sorted([f for f in fastqs if rp in basename(f)])
+
+                len_matches = len(matches)
+                if len_matches in (1, 2):
+                    filepaths.append(matches[0])
+                    filetypes.append('raw_forward_seqs')
+                    fastqs.remove(matches[0])
+
+                    if len_matches == 2:
+                        filepaths.append(matches[1])
+                        filetypes.append('raw_reverse_seqs')
+                        fastqs.remove(matches[1])
+
+            # making sure all run_prefixes have a match, if not skip
+            lfpts = len(filepaths)
+            lrp = len(run_prefixes)
+            lft = len(filetypes)
+            if lfpts == lrp and lrp == lft:
+                artifact = load_artifact_from_cmd(
+                    filepaths, filetypes, 'per_sample_FASTQ',
+                    prep_template=prep_template.id)
+            else:
+                messages.append('Could not match all run_prefixes to these '
+                                'files: %s' % ','.join([
+                                    basename(f) for f in filepaths]))
+                to_copy.extend(filepaths)
+                continue
+
+            artifacts.append(artifact)
+
+        # STEP 4: loop over the new artifacts created and add processing
+        for a in artifacts:
+            # this shouldn't be necessary but in case we need to rerun more
+            # than once
+            if a.jobs():
+                continue
+
+            if a.data_type in ('Metagenomic', 'Metatranscriptomic'):
+                # Atropos
+                plugin = _get_plugin('qp-meta', '2020.11')
+                cmd = [c for c in plugin.commands
+                       if c.name == 'Atropos v1.1.24'][0]
+                params = [p for p in cmd.default_parameter_sets
+                          if p.name == 'KAPA HyperPlus with iTru'][
+                              0].values.copy()
+                params['input'] = str(a.id)
+                job_params = Parameters.load(cmd, values_dict=params)
+                workflow = ProcessingWorkflow.from_scratch(user, job_params)
+                main_job = list(workflow.graph.nodes())[0]
+
+                # Woltka
+                plugin = _get_plugin('qp-woltka', '2020.11')
+                cmd = [c for c in plugin.commands
+                       if c.name == 'Woltka v0.1.1'][0]
+                input_name = 'input'
+                parent_artifact_name = 'Adapter trimmed files'
+                for p in cmd.default_parameter_sets:
+                    params = p.values.copy()
+                    params[input_name] = '%s%s' % (main_job.id,
+                                                   parent_artifact_name)
+                    job_params = Parameters.load(cmd, values_dict=params)
+
+                    workflow.add(job_params, connections={
+                                 main_job: {parent_artifact_name: input_name}})
+
+                workflow.submit()
+            elif a.data_type in ('18S', '16S', 'ITS'):
+                # Split libraries
+                plugin = _get_plugin('QIIMEq2', '1.9.1')
+                cmd = [c for c in plugin.commands
+                       if c.name == 'Split libraries FASTQ'][0]
+                params = [p for p in cmd.default_parameter_sets
+                          if p.name == 'Per-sample FASTQs; Phred offset: 33'][
+                              0].values.copy()
+                params['input_data'] = str(a.id)
+                job_params = Parameters.load(cmd, values_dict=params)
+                workflow = ProcessingWorkflow.from_scratch(user, job_params)
+                main_job = list(workflow.graph.nodes())[0]
+
+                # Trimming
+                cmd = [c for c in plugin.commands if c.name == 'Trimming'][0]
+                input_name = 'input_data'
+                parent_artifact_name = 'demultiplexed'
+                trim_lengths = ['90 base pairs', '100 base pairs',
+                                '150 base pairs']
+                for p in cmd.default_parameter_sets:
+                    if p.name not in trim_lengths:
+                        continue
+                    params = p.values.copy()
+                    params[input_name] = '%s%s' % (
+                        main_job.id, parent_artifact_name)
+                    job_params = Parameters.load(cmd, values_dict=params)
+
+                    workflow.add(job_params, connections={
+                                 main_job: {parent_artifact_name: input_name}})
+
+                # Deblur
+                plugin = _get_plugin('deblur', '1.1.0')
+                cmd = [c for c in plugin.commands if c.name == 'Deblur'][0]
+                input_name = 'Demultiplexed sequences'
+                parent_artifact_name = 'Trimmed Demultiplexed'
+                # there is only one parameter set in deblur
+                cmd_params = list(cmd.default_parameter_sets)[0]
+                for job in workflow.graph.nodes():
+                    if job.command.name == 'Trimming':
+                        params = cmd_params.values.copy()
+                        params[input_name] = '%s%s' % (
+                            job.id, parent_artifact_name)
+                        job_params = Parameters.load(cmd, values_dict=params)
+                        workflow.add(job_params, connections={
+                                     job: {parent_artifact_name: input_name}})
+
+                # TODO: decide if we should add close reference
+
+                workflow.submit()
+
+        # STEP 5: adding all insert notes to the study
+        markdowner = Markdown(extras=['code-friendly'])
+        study.notes = markdowner.convert('\n'.join(
+            ['**Loading notes:**'] + messages))
+
+        # TODO: mv to_copy files to the upload folder of the study
+
+
+if __name__ == '__main__':
+    autoload_ebi_study()
