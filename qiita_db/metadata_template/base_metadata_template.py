@@ -1157,13 +1157,15 @@ class MetadataTemplate(qdb.base.QiitaObject):
             df.to_csv(fp, index_label='sample_name', na_rep="", sep='\t',
                       encoding='utf-8')
 
-    def _common_to_dataframe_steps(self):
+    def _common_to_dataframe_steps(self, samples=None):
         """Perform the common to_dataframe steps
 
         Returns
         -------
         pandas DataFrame
             The metadata in the template,indexed on sample id
+        samples list of string, optional
+            A list of the sample names we actually want to retrieve
         """
         with qdb.sql_connection.TRN:
             # Retrieve all the information from the database

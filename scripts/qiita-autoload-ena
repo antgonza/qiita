@@ -152,7 +152,7 @@ def autoload_ebi_study(input_folder):
             lfpts = len(filepaths)
             lrp = len(run_prefixes)
             lft = len(filetypes)
-            if lfpts == lrp and lrp == lft:
+            if lfpts == lft and (lfpts == lrp or int(lfpts/2) == lrp):
                 artifact = load_artifact_from_cmd(
                     filepaths, filetypes, 'per_sample_FASTQ',
                     prep_template=prep_template.id)
