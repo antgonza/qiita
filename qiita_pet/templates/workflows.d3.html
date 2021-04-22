@@ -1,0 +1,270 @@
+{% extends sitebase.html %}
+{% block head %}
+{% from qiita_core.qiita_settings import qiita_config %}
+
+<script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
+
+<style>
+
+  .node circle {
+    fill: #fff;
+    stroke: steelblue;
+    stroke-width: 3px;
+  }
+
+  .node text { font: 12px sans-serif; }
+
+  .node--internal text {
+    text-shadow: 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff;
+  }
+
+  .link {
+    fill: none;
+    stroke: #ccc;
+    stroke-width: 2px;
+  }
+
+</style>
+
+
+<script type="text/javascript">
+var options = {
+  autoResize: true,
+  nodes: {
+    font: {
+      size: 15,
+      color: '#000000'
+    },
+    size: 13,
+    borderWidth: 2,
+  },
+  edges: {
+    color: 'grey'
+  },
+  layout: {
+    randomSeed: 1,
+    improvedLayout: true,
+    hierarchical: {
+      direction: "LR",
+      sortMethod : 'directed',
+      levelSeparation: 190,
+      shakeTowards: 'roots'
+    }
+  },
+  interaction: {
+    dragNodes: false,
+    dragView: true,
+    zoomView: true,
+    selectConnectedEdges: true,
+    navigationButtons: true,
+    keyboard: false,
+  }
+};
+
+var colorScheme =  {
+  'command': {border: '#00cc00', background: '#7FE57F', highlight: {border: '#00cc00', background: '#a5eda5'}, 'color': '#333333'},
+  'artifact': {border: '#BBBBBB', background: '#FFFFFF', highlight: {border: '#999999', background: '#FFFFFF'}, 'color': '#333333'}
+}
+
+function format_title(name, params) {
+  var title = '<b>Name: ' + name + '</b></br>';
+  for (var key in params) {
+    title += '<b>' + key + '</b>: ' + params[key] + '</br>';
+  }
+  return title;
+}
+
+</script>
+
+{% end %}
+
+{% block content %}
+
+<div id="d3network"></div>
+
+<script>
+
+function generate_d3network(div_name, nodes, edges){
+  var width = 600;
+  var height = 400;
+
+  // the flat data
+  var flatData = [
+    {"name": "Top Level", "parent": null},
+    {"name": "Level 2: A", "parent": "Top Level" },
+    {"name": "Level 2: B", "parent": "Top Level" },
+    {"name": "Son of A", "parent": "Level 2: A" },
+    {"name": "Daughter of A", "parent": "Level 2: A" }
+  ];
+
+  var data = {
+  "name": "A1",
+  "children": [
+    {
+      "name": "B1",
+      "children": [
+        {
+          "name": "C1",
+          "value": 100
+        },
+        {
+          "name": "C2",
+          "value": 300
+        },
+        {
+          "name": "C3",
+          "value": 200
+        }
+      ]
+    },
+    {
+      "name": "B2",
+      "value": 200
+    }
+  ]
+}
+
+  // convert the flat data into a hierarchy
+  var treeData = d3.stratify()
+    .id(function(d) { return d.name; })
+    .parentId(function(d) { return d.parent; })
+    (flatData);
+
+
+
+  // assign the name to each node
+  treeData.each(function(d) {
+      d.name = d.id;
+    });
+
+  // set the dimensions and margins of the diagram
+  var margin = {top: 20, right: 90, bottom: 30, left: 90},
+      width = width - margin.left - margin.right,
+      height = height - margin.top - margin.bottom;
+
+  // declares a tree layout and assigns the size
+  var treemap = d3.tree()
+      .size([height, width]);
+
+  //  assigns the data to a hierarchy using parent-child relationships
+  var nodes = d3.hierarchy(treeData, function(d) {
+      return d.children;
+    });
+
+  // maps the node data to the tree layout
+  nodes = treemap(nodes);
+
+  // append the svg object to the body of the page
+  // appends a 'group' element to 'svg'
+  // moves the 'group' element to the top left margin
+
+  // var canvas = d3.select("#network"),
+  //   width = canvas.attr("width"),
+  //   height = canvas.attr("height"),
+  //   radius = 3,
+  //   ctx = canvas.node().getContext("2d");
+
+
+
+  // var svg = d3.select("#my_dataviz")
+  //   .append("svg")
+  //     .attr("width", width)
+  //     .attr("height", height)
+  //   .append("g")
+  //     .attr("transform", "translate(40,0)");
+
+  var g = d3.select("#d3network")
+      .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+        .attr("transform",
+              "translate(" + margin.left + "," + margin.top + ")");
+
+  // adds the links between the nodes
+  var link = g.selectAll(".link")
+      .data( nodes.descendants().slice(1))
+    .enter().append("path")
+      .attr("class", "link")
+      .attr("d", function(d) {
+         return "M" + d.y + "," + d.x
+           + "C" + (d.y + d.parent.y) / 2 + "," + d.x
+           + " " + (d.y + d.parent.y) / 2 + "," + d.parent.x
+           + " " + d.parent.y + "," + d.parent.x;
+         });
+
+  // adds each node as a group
+  var node = g.selectAll(".node")
+      .data(nodes.descendants())
+    .enter().append("g")
+      .attr("class", function(d) {
+        return "node" +
+          (d.children ? " node--internal" : " node--leaf"); })
+      .attr("transform", function(d) {
+        return "translate(" + d.y + "," + d.x + ")"; });
+
+  // adds the circle to the node
+  node.append("circle")
+    .attr("r", 10);
+
+  // adds the text to the node
+  node.append("text")
+    .attr("dy", ".35em")
+    .attr("x", function(d) { return d.children ? -13 : 13; })
+    .style("text-anchor", function(d) {
+      return d.children ? "end" : "start"; })
+    .text(function(d) { return d.data.name; });
+
+}
+
+div_name = 'bla'
+nodes = 'bla'
+edges = 'bla'
+generate_d3network(div_name, nodes, edges);
+</script>
+
+{% if workflows %}
+    <h3>Recommended Workflows</h3>
+    <h5>Click on the spheres to get more information</h5>
+      {% for i, w in enumerate(workflows) %}
+        <div class="row">
+          <div class="col-sm-7" style="background-color: #DCDCDC; height: 650px" id="workflow_{{i}}"></div>
+          <div class="col-sm-5">
+            <h4>
+              Application: {{', '.join(w['data_types'])}}
+              <hr/>
+              {{w['name']}}
+            </h4>
+            <br/>
+            <div id="workflow_text_{{i}}">
+              {% raw w['description'] %}
+            </div>
+          </div>
+          <script type="text/javascript">
+            var nodes_{{i}} = ([
+              {% for node in w['nodes'] %}
+                {% if node[0].startswith('params') %}
+                  {id: "{{node[0]}}", shape: "dot", color: colorScheme['command'], label: "{% raw node[2].replace(' | ', '\\n') %}", title: format_title("{{node[3]}}", {% raw node[4] %})},
+                {% else %}
+                  {id: "{{node[0]}}", shape: "dot", color: colorScheme['artifact'], label: "{% raw node[2].replace(' | ', '\\n') %}", title: "Artifact: {{node[2]}}"},
+                {% end %}
+              {% end %}
+            ]);
+
+            var edges_{{i}} = ([
+              {% for f, t in w['edges'] %}
+                { from: "{{f}}", to: "{{t}}", arrows: "to"},
+              {% end %}
+            ]);
+            var container = document.getElementById("workflow_{{i}}");
+            var data = { nodes: nodes_{{i}}, edges: edges_{{i}} };
+          </script>
+        </div>
+        <hr/>
+      {% end %}
+  {% else %}
+      <div id="jumbotron" class="jumbotron">
+          <h1><span class="glyphicon glyphicon-thumbs-down"></span> There are no workflows in this system. </h1>
+      </div>
+  {% end %}
+{% end %}

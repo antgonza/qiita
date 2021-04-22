@@ -1,0 +1,174 @@
+{% extends sitebase.html %}
+{% block head %}
+{% from qiita_core.qiita_settings import qiita_config %}
+
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/sigma.core.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/conrad.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/utils/sigma.utils.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/utils/sigma.polyfills.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/sigma.settings.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/classes/sigma.classes.dispatcher.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/classes/sigma.classes.configurable.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/classes/sigma.classes.graph.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/classes/sigma.classes.camera.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/classes/sigma.classes.quad.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/classes/sigma.classes.edgequad.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/captors/sigma.captors.mouse.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/captors/sigma.captors.touch.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/sigma.renderers.canvas.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/sigma.renderers.webgl.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/sigma.renderers.svg.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/sigma.renderers.def.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/webgl/sigma.webgl.nodes.def.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/webgl/sigma.webgl.nodes.fast.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/webgl/sigma.webgl.edges.def.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/webgl/sigma.webgl.edges.fast.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/webgl/sigma.webgl.edges.arrow.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/canvas/sigma.canvas.labels.def.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/canvas/sigma.canvas.hovers.def.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/canvas/sigma.canvas.nodes.def.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/canvas/sigma.canvas.edges.def.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/canvas/sigma.canvas.edges.curve.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/canvas/sigma.canvas.edges.arrow.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/canvas/sigma.canvas.edges.curvedArrow.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/canvas/sigma.canvas.edgehovers.def.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/canvas/sigma.canvas.edgehovers.curve.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/canvas/sigma.canvas.edgehovers.arrow.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/canvas/sigma.canvas.edgehovers.curvedArrow.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/canvas/sigma.canvas.extremities.def.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/svg/sigma.svg.utils.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/svg/sigma.svg.nodes.def.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/svg/sigma.svg.edges.def.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/svg/sigma.svg.edges.curve.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/svg/sigma.svg.labels.def.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/renderers/svg/sigma.svg.hovers.def.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/middlewares/sigma.middlewares.rescale.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/middlewares/sigma.middlewares.copy.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/misc/sigma.misc.animation.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/misc/sigma.misc.bindEvents.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/misc/sigma.misc.bindDOMEvents.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/misc/sigma.misc.drawHovers.js"></script>
+
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/plugins/sigma.layout.forceAtlas2/worker.js"></script>
+<script src="{% raw qiita_config.portal_dir %}/static/vendor/js/sigma/plugins/sigma.layout.forceAtlas2/supervisor.js"></script>
+
+<style>
+  .sigma_network {
+    height: 500px;
+    width: 100%;
+    background: blue;
+  }
+</style>
+
+<script type="text/javascript">
+var colorScheme =  {
+  'command': {border: '#00cc00', background: '#7FE57F', highlight: {border: '#00cc00', background: '#a5eda5'}, 'color': '#333333'},
+  'artifact': {border: '#BBBBBB', background: '#FFFFFF', highlight: {border: '#999999', background: '#FFFFFF'}, 'color': '#333333'}
+}
+
+function format_title(name, params) {
+  var title = '<b>Name: ' + name + '</b></br>';
+  for (var key in params) {
+    title += '<b>' + key + '</b>: ' + params[key] + '</br>';
+  }
+  return title;
+}
+
+</script>
+
+{% end %}
+
+{% block content %}
+  {% if workflows %}
+    <h3>Recommended Workflows</h3>
+    <h5>Click on the spheres to get more information</h5>
+      {% for i, w in enumerate(workflows) %}
+        <div class="row">
+          <div class="col-sm-7" style="background-color: #DCDCDC; height: 650px" id="workflow_{{i}}"></div>
+          <div class="col-sm-5">
+            <h4>
+              Application: {{', '.join(w['data_types'])}}
+              <hr/>
+              {{w['name']}}
+            </h4>
+            <br/>
+            <div id="workflow_text_{{i}}">
+              {% raw w['description'] %}
+            </div>
+          </div>
+
+          <script type="text/javascript">
+            var g_{{i}} = {nodes: [], edges: [] };
+            {% for node in w['nodes'] %}
+                g_{{i}}.nodes.push({
+                  id: "{{node[0]}}",
+                  {% if node[0].startswith('params') %}
+                    label: "{% raw node[2].replace(' | ', '\\n') %}",
+                    title: format_title("{{node[3]}}", {% raw node[4] %}),
+                    color: colorScheme['command']['background'],
+                  {% else %}
+                    label: "{% raw node[2].replace(' | ', '\\n') %}",
+                    title: "Artifact: {{node[2]}}",
+                    color: colorScheme['artifact']['background'],
+                  {% end %}
+                  shape: "dot",
+                  x: Math.random(),
+                  y: Math.random(),
+                  size: .5,
+                });
+                console.log(colorScheme['command'])
+                console.log(colorScheme['artifact']['color'])
+            {% end %}
+
+            {% for f, t in w['edges'] %}
+              g_{{i}}.edges.push({
+                id: Math.random(),
+                source: "{{f}}",
+                target: "{{t}}",
+                size: .5,
+                color: '#ccc',
+                type: 'curvedArrow', // ['line', 'curve', 'arrow', 'curvedArrow']
+                arrow: "source"
+              });
+            {% end %}
+
+            s = new sigma({
+              graph: g_{{i}},
+              renderer: {
+                container: 'workflow_{{i}}',
+                type: 'canvas'
+              },
+              settings: {
+                maxEdgeSize: 4,
+                maxNodeSize: 20,
+                doubleClickEnabled: false,
+                enableEdgeHovering: true,
+                edgeHoverColor: 'edge',
+                defaultEdgeHoverColor: '#000',
+                edgeHoverSizeRatio: 1,
+                edgeHoverExtremities: true,
+                defaultEdgeArrow: 'source'
+              }
+            });
+            s.bind('overNode outNode clickNode doubleClickNode rightClickNode', function(e) {
+              console.log(e.type, e.data.node.label, e.data.captor);
+            });
+            s.bind('overEdge outEdge clickEdge doubleClickEdge rightClickEdge', function(e) {
+              console.log(e.type, e.data.edge, e.data.captor);
+            });
+            s.bind('clickStage', function(e) {
+              console.log(e.type, e.data.captor);
+            });
+            s.bind('doubleClickStage rightClickStage', function(e) {
+              console.log(e.type, e.data.captor);
+            });
+          </script>
+        </div>
+        <hr/>
+      {% end %}
+  {% else %}
+      <div id="jumbotron" class="jumbotron">
+          <h1><span class="glyphicon glyphicon-thumbs-down"></span> There are no workflows in this system. </h1>
+      </div>
+  {% end %}
+{% end %}
