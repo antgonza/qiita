@@ -7,9 +7,22 @@
   // This modal view is used to display job details when a job has errored or
   // succeeded. Needs to be in the main scope because this function is called
   // from the "onclick" attribute of some elements.
-  var populateModal = function(title, main) {
+  var populate_modal = function(title, main, artifact_id) {
     $('#job-output-modal').find('[name="modal-title"]').html(title);
-    $('#job-output-modal').find('[name="modal-main-text"]').html(unescape(decodeURIComponent(main)));
+    var $main = $('#job-output-modal').find('[name="modal-main-text"]');
+
+    if (artifact_id === undefined) {
+      $main.html(unescape(decodeURIComponent(main)));
+    }
+    else {
+      $.get('/artifact/' + artifact_id + '/summary/', function(data){
+        $main.html(data);
+      })
+        .fail(function(object, status, error_msg) {
+          $main.html("Error loading artifact information: " + status + " " + object.statusText);
+        }
+      );
+    }
   }
 
   // Initialize the previous jobs table once the document is ready
@@ -37,7 +50,7 @@
                          container['filename'] + '</a>');
           }
           else {
-            lines.push('JavaScript Object')
+            lines.push('Unsupported JavaScript Object')
           }
         }
         else {
@@ -69,12 +82,14 @@
         // quotation is a bit hard to follow but all in all it's ensuring any
         // text we get back from the server is properly formatted for
         // inclusion in an HTML attribute.
-        var callback = 'populateModal("' + row[0] + " completed on " +
+        var callback = 'populate_modal("' + row[0] + " completed on " +
                        row[6] + '",';
         out.push('<a href="#" data-toggle="modal" data-target="#job-output-modal" onclick=\'' + callback)
 
         if (status === 'success') {
-          out.push('"Render HTML for Artifact, check with Antonio")\'');
+          // job output is in the fourth element
+          // We only expect one output with the artifact id in the 2 element
+          out.push('undefined, ' + row[4][0][1] +')\'');
           out.push('>View results</a>')
 
         }
@@ -311,16 +326,6 @@
           jobsTable.ajax.url("/admin/processing_jobs/list?sEcho=" + Math.floor(Math.random()*10001) + "&commandId=" + command_id).load();
 
         });
-  }
-
-  function display_artifact_info(artifactId){
-    $.get('/artifact/' + artifactId + '/summary/', function(data){
-      $("#modal-body").html(data);
-    })
-      .fail(function(object, status, error_msg) {
-        $("#modal-body").html("Error loading artifact information: " + status + " " + object.statusText);
-      }
-    );
   }
 </script>
 
