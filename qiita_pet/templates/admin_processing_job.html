@@ -2,6 +2,72 @@
 
 {% block head %}
 <script type="text/javascript">
+  var jobsTable;
+
+  // initialize the previous jobs table putting everything in a closure because
+  // the table itself relies on an element that's declared near the end of the
+  // document
+  $(function() {
+    var renderJobArguments = function(data, type, row, meta) {
+      // select how you want to render the data
+      var lines = [], container;
+
+      for (key in data) {
+        lines.push('<b>' + key + '</b>:');
+        if (typeof data[key] === 'string'){
+          lines.push(data[key]);
+        }
+        else if (typeof data[key] === 'object') {
+          container = data[key];
+
+          // if we have all these attributes then render a named hyperlink to
+          //download the data
+          if (container['body'] !== undefined &&
+              container['filename'] !== undefined &&
+              container['content_type'] !== undefined) {
+              lines.push('<a download="' + container['filename'] +
+                         '" href="data:text/plain;charset=utf-8,' +
+                         encodeURIComponent(container['body']) + '">' +
+                         container['filename'] + '</a>');
+          }
+          else {
+            lines.push('JavaScript Object')
+          }
+        }
+        else {
+          lines.push(data[key]);
+        }
+      }
+
+      return lines.join('<br>');
+    }
+
+    jobsTable = $('#private-jobs-table').DataTable({
+      "order": [[0, "desc"]],
+      "oLanguage": {
+        "sZeroRecords": "There are no jobs available",
+        "search": "Filter results",
+        "loadingRecords": "Please wait - loading previous jobs ...",
+      },
+      "destroy": true,
+      "autoWidth": false,
+      "columnDefs": [
+        {'width': '13.333%', 'targets': 0, 'data': 6},
+        {'width': '13.333%', 'targets': 1, 'data': 7, 'render': renderJobArguments},
+        {'width': '13.333%', 'targets': 2, 'data': 0},
+        {'width': '13.333%', 'targets': 3, 'data': 2},
+        {'width': '60%', 'targets': 4, 'data': 3},
+      ],
+    });
+
+    setInterval(function () {
+      if (jobsTable.ajax !== undefined) {
+        jobsTable.ajax.reload(null, false); // user paging is not reset on reload
+      }
+    }, 10000);
+
+  });
+
   /**
    * This is a modified version of loadParameterGUI in networkVue.js
    **/
@@ -148,6 +214,9 @@
           })
           .always(function() {
             _helper_clean_objects();
+
+            // trigger a courtesy reload of the table to show the new job
+            jobsTable.ajax.reload(null, false);
           });
       },
       error: function (object, status, error_msg) {
@@ -163,41 +232,6 @@
     var command_name = option_selected.text();
     $('#cmd-description').html(option_selected.attr('description'));
     $("#parameters").empty();
-
-    function renderArguments(data, type, row, meta) {
-      // select how you want to render the data
-      var lines = [], container;
-
-      for (key in data) {
-        lines.push('<b>' + key + '</b>:');
-        console.log(key, data[key]);
-        if (typeof data[key] === 'string'){
-          lines.push(data[key]);
-        }
-        else if (typeof data[key] === 'object') {
-          container = data[key];
-
-          // if we have all these attributes then render a named hyperlink to
-          //download the data
-          if (container['body'] !== undefined &&
-              container['filename'] !== undefined &&
-              container['content_type'] !== undefined) {
-              lines.push('<a download="' + container['filename'] +
-                         '" href="data:text/plain;charset=utf-8,' +
-                         encodeURIComponent(container['body']) + '">' +
-                         container['filename'] + '</a>');
-          }
-          else {
-            lines.push('JavaScript Object')
-          }
-        }
-        else {
-          lines.push(data[key]);
-        }
-      }
-
-      return lines.join('<br>');
-    }
 
     $.get('/study/process/commands/options/', {command_id: command_id})
       .done(function(data){
@@ -223,33 +257,14 @@
               this.disabled = true;
               add_and_submit_job(command_id);
               this.disabled = false;
-              $('#previous-jobs').hide();
             });
 
           // load the jobs table for the selected command
           $('#previous-jobs').show();
           $('#previous-jobs-tin').html('Previous "' + command_name + '" jobs');
 
-          // actualizar cada 10 segundos
-          $('#private-jobs-table').dataTable({
-            "order": [[0, "desc"]],
-            "destroy": true,
-            "oLanguage": {
-              "sZeroRecords": "There are no jobs available",
-              "search": "Filter results",
-              "loadingRecords": "Please wait - loading previous jobs ...",
-            },
-            "autoWidth": false,
-            "columnDefs": [
-              {'width': '13.333%', 'targets': 0, 'data': 6},
-              {'width': '13.333%', 'targets': 1, 'data': 7, 'render': renderArguments},
-              {'width': '13.333%', 'targets': 2, 'data': 0},
-              {'width': '13.333%', 'targets': 3, 'data': 2},
-              {'width': '60%', 'targets': 4, 'data': 3},
-            ],
-            'ajax': "/admin/processing_jobs/list?sEcho=" + Math.floor(Math.random()*10001) + "&commandId=" + command_id,
-          });
-
+          // update the table
+          jobsTable.ajax.url("/admin/processing_jobs/list?sEcho=" + Math.floor(Math.random()*10001) + "&commandId=" + command_id).load();
 
         });
   }
@@ -263,8 +278,6 @@
       }
     );
   }
-
-
 </script>
 
 {% end %}
@@ -312,8 +325,8 @@
     </div>
   </div>
 
-  <div class="row">
-    <div id="previous-jobs" style="display: none;" class="col-sm-12">
+  <div id="previous-jobs" style="display: none;" class="row">
+    <div class="col-sm-12">
       <h3 id="previous-jobs-tin" class="gray-msg">Previous Jobs</h3>
       <table id="private-jobs-table" class="table table-bordered gray-msg" style="width: 30px!">
         <thead>
@@ -329,6 +342,5 @@
       </table>
     </div>
   </div>
-
 
 {% end %}
