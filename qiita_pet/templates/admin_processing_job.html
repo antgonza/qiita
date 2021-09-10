@@ -4,9 +4,15 @@
 <script type="text/javascript">
   var jobsTable;
 
-  // initialize the previous jobs table putting everything in a closure because
-  // the table itself relies on an element that's declared near the end of the
-  // document
+  // This modal view is used to display job details when a job has errored or
+  // succeeded. Needs to be in the main scope because this function is called
+  // from the "onclick" attribute of some elements.
+  var populateModal = function(title, main) {
+    $('#job-output-modal').find('[name="modal-title"]').html(title);
+    $('#job-output-modal').find('[name="modal-main-text"]').html(unescape(decodeURIComponent(main)));
+  }
+
+  // Initialize the previous jobs table once the document is ready
   $(function() {
     var renderJobArguments = function(data, type, row, meta) {
       // select how you want to render the data
@@ -42,8 +48,46 @@
       return lines.join('<br>');
     }
 
+    var renderRichDescription = function(data, type, row, meta) {
+      var out = [], status = row[2];
+      var statusToClass = {
+        'error': 'text-danger',
+        'success': 'text-success',
+        'queued': 'text-muted',
+        'running': 'text-info'
+      };
+
+      out.push('<b class="' + statusToClass[status] + '">' + status +
+               '</b>: ');
+
+      if (status === 'running' || status === 'queued') {
+        out.push(row[0] + ' <i>' + row[3] + '</i>')
+      }
+      else {
+        // We write a callback attribute on the link to be able to display a
+        // modal window with the additional success/error details. Note, the
+        // quotation is a bit hard to follow but all in all it's ensuring any
+        // text we get back from the server is properly formatted for
+        // inclusion in an HTML attribute.
+        var callback = 'populateModal("' + row[0] + " completed on " +
+                       row[6] + '",';
+        out.push('<a href="#" data-toggle="modal" data-target="#job-output-modal" onclick=\'' + callback)
+
+        if (status === 'success') {
+          out.push('"Render HTML for Artifact, check with Antonio")\'');
+          out.push('>View results</a>')
+
+        }
+        else if (status === 'error') {
+          out.push('"' + escape(encodeURIComponent(row[3])) + '")\'');
+          out.push('>View error log summary</a>')
+        }
+      }
+        return out.join('');
+      }
+
     jobsTable = $('#private-jobs-table').DataTable({
-      "order": [[0, "desc"]],
+      "order": [[2, "desc"]],
       "oLanguage": {
         "sZeroRecords": "There are no jobs available",
         "search": "Filter results",
@@ -52,17 +96,17 @@
       "destroy": true,
       "autoWidth": false,
       "columnDefs": [
-        {'width': '13.333%', 'targets': 0, 'data': 6},
-        {'width': '13.333%', 'targets': 1, 'data': 7, 'render': renderJobArguments},
-        {'width': '13.333%', 'targets': 2, 'data': 0},
-        {'width': '13.333%', 'targets': 3, 'data': 2},
-        {'width': '60%', 'targets': 4, 'data': 3},
+        {'width': 'col-sm-8', 'targets': 0, 'data': 0, 'render': renderRichDescription},
+        {'width': 'col-sm-2', 'targets': 1, 'data': 7, 'render': renderJobArguments},
+        {'width': 'col-sm-2', 'targets': 2, 'data': 6},
       ],
     });
 
+    // update the table every 10 seconds
     setInterval(function () {
       if (jobsTable.ajax !== undefined) {
-        jobsTable.ajax.reload(null, false); // user paging is not reset on reload
+        // user paging is not reset on reload
+        jobsTable.ajax.reload(null, false);
       }
     }, 10000);
 
@@ -325,17 +369,31 @@
     </div>
   </div>
 
+  <!-- Job Output Modal -->
+  <div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true" id="job-output-modal">
+    <div class="modal-dialog modal-med">
+      <div class="modal-content">
+      <div class="modal-header">
+         <h3 name="modal-title"></h3>
+      </div>
+      <div class="modal-body" name="modal-main-text">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+      </div>
+    </div>
+  </div>
+
   <div id="previous-jobs" style="display: none;" class="row">
     <div class="col-sm-12">
       <h3 id="previous-jobs-tin" class="gray-msg">Previous Jobs</h3>
       <table id="private-jobs-table" class="table table-bordered gray-msg" style="width: 30px!">
         <thead>
           <tr>
-            <th class="sorting sorting_asc" tabindex="0" aria-controls="private-jobs-table" rowspan="1" colspan="1" aria-sort="ascending" aria-label="Last Updated">Last Updated</th>
+            <th class="sorting sorting_asc" tabindex="0" aria-controls="private-jobs-table" rowspan="1" colspan="1" aria-sort="ascending" aria-label="Last Updated">Summary</th>
             <th class="sorting sorting_asc" tabindex="0" aria-controls="private-jobs-table" rowspan="1" colspan="1" aria-sort="ascending" aria-label="Last Updated">Arguments</th>
-            <th class="sorting sorting_asc" tabindex="0" aria-controls="private-jobs-table" rowspan="1" colspan="1" aria-sort="ascending" aria-label="Job ID">Job ID</th>
-            <th class="sorting sorting_asc" tabindex="0" aria-controls="private-jobs-table" rowspan="1" colspan="1" aria-sort="ascending" aria-label="Status">Status</th>
-            <th class="sorting sorting_asc" tabindex="0" aria-controls="private-jobs-table" rowspan="1" colspan="1" aria-sort="ascending" aria-label="Message">Message</th>
+            <th class="sorting sorting_asc" tabindex="0" aria-controls="private-jobs-table" rowspan="1" colspan="1" aria-sort="ascending" aria-label="Last Updated">Last Updated</th>
         </thead>
         <tbody>
         </tbody>
