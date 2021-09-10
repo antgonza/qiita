@@ -104,7 +104,7 @@
 
     // update the table every 10 seconds
     setInterval(function () {
-      if (jobsTable.ajax !== undefined) {
+      if (jobsTable.ajax.url()) {
         // user paging is not reset on reload
         jobsTable.ajax.reload(null, false);
       }

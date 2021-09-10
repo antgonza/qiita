@@ -14,8 +14,6 @@ from mock import Mock
 from qiita_db.user import User
 from qiita_pet.handlers.base_handlers import BaseHandler
 from qiita_pet.test.tornado_test_base import TestHandlerBase
-from qiita_pet.handlers.admin_processing_job import (
-    AdminProcessingJob, AJAXAdminProcessingJobListing)
 
 
 class BaseAdminTests(TestHandlerBase):
@@ -23,11 +21,13 @@ class BaseAdminTests(TestHandlerBase):
         super().setUp()
         BaseHandler.get_current_user = Mock(return_value=User("admin@foo.bar"))
 
+
 class TestAdminProcessingJob(BaseAdminTests):
     def test_get(self):
         response = self.get('/admin/processing_jobs/')
         self.assertEqual(response.code, 200)
         self.assertIn("Available Commands", response.body.decode('ascii'))
+
 
 class TestAJAXAdminProcessingJobListing(BaseAdminTests):
     def test_get(self):
@@ -43,6 +43,7 @@ class TestAJAXAdminProcessingJobListing(BaseAdminTests):
         self.assertEqual(response.code, 400)
         self.assertIn("Missing argument commandId",
                       response.body.decode('ascii'))
+
 
 if __name__ == "__main__":
     main()
