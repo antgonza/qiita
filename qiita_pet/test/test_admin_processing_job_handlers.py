@@ -7,6 +7,7 @@
 # -----------------------------------------------------------------------------
 
 from unittest import main
+from json import loads
 
 from mock import Mock
 
@@ -30,10 +31,12 @@ class TestAdminProcessingJob(BaseAdminTests):
 
 class TestAJAXAdminProcessingJobListing(BaseAdminTests):
     def test_get(self):
-        # TODO: How do we test this since we don't have admin plugins in the
-        # test environment
         response = self.get('/admin/processing_jobs/list?sEcho=3&commandId=1')
         self.assertEqual(response.code, 200)
+
+        exp = {'sEcho': '3', 'recordsTotal': 0, 'recordsFiltered': 0,
+               'data': []}
+        self.assertEqual(loads(response.body), exp)
 
     def test_get_missing_argument(self):
         response = self.get('/admin/processing_jobs/list?sEcho=1')
