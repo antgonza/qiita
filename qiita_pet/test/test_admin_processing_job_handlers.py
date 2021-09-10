@@ -17,17 +17,29 @@ from qiita_pet.handlers.admin_processing_job import (
     AdminProcessingJob, AJAXAdminProcessingJobListing)
 
 
-class TestAdminProcessingJob(TestHandlerBase):
-    def test_get(self):
+class BaseAdminTests(TestHandlerBase):
+    def setUp(self):
+        super().setUp()
         BaseHandler.get_current_user = Mock(return_value=User("admin@foo.bar"))
 
+class TestAdminProcessingJob(BaseAdminTests):
+    def test_get(self):
         response = self.get('/admin/processing_jobs/')
         self.assertEqual(response.code, 200)
         self.assertIn("Available Commands", response.body.decode('ascii'))
 
-class TestAJAXAdminProcessingJobListing(TestHandlerBase):
+class TestAJAXAdminProcessingJobListing(BaseAdminTests):
     def test_get(self):
-        self.fail()
+        # TODO: How do we test this since we don't have admin plugins in the
+        # test environment
+        response = self.get('/admin/processing_jobs/list?sEcho=3&commandId=1')
+        self.assertEqual(response.code, 200)
+
+    def test_get_missing_argument(self):
+        response = self.get('/admin/processing_jobs/list?sEcho=1')
+        self.assertEqual(response.code, 400)
+        self.assertIn("Missing argument commandId",
+                      response.body.decode('ascii'))
 
 if __name__ == "__main__":
     main()
