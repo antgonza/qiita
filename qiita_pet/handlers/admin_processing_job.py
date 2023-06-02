@@ -115,8 +115,8 @@ class SampleValidation(AdminProcessingJobBaseClass):
         # Stripping leading qiita id from sample names
         # Example: 1.SKB1.640202 -> SKB1.640202
         try:
-            st = Study(qid).sample_template
-            qsnames = list(st)
+            sample_info = Study(qid).sample_template
+            qsnames = list(sample_info)
         except TypeError:
             error = f'Study {qid} seems to have no sample template'
         except QiitaDBUnknownIDError:
@@ -125,8 +125,8 @@ class SampleValidation(AdminProcessingJobBaseClass):
         if error is None:
             # if tube_id is present then this should take precedence in qsnames
             tube_ids = dict()
-            if "tube_id" in st.categories:
-                for k, v in st.get_category("tube_id").items():
+            if "tube_id" in sample_info.categories:
+                for k, v in sample_info.get_category("tube_id").items():
                     # ignoring empty values
                     if v in (None, 'None', ''):
                         continue

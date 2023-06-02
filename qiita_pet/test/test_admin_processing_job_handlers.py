@@ -65,7 +65,7 @@ class TestSampleValidation(BaseAdminTests):
         for name in snames:
             self.assertIn(name, body)
 
-        # Check succes with tube_id
+        # Check success with tube_id
         md_dict = {'SKB1.640202': {'tube_id': '12345'}}
         md_ext = pd.DataFrame.from_dict(md_dict, orient='index', dtype=str)
         ST(1).extend(md_ext)
